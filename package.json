@@ -1,0 +1,9 @@
+{
+  "name": "rovnatka-timer",
+  "version": "1.0.0",
+  "description": "Casovac na noseni rovnatek s denni statistikou a cilem 20h",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
