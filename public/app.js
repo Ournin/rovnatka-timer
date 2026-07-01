@@ -15,6 +15,12 @@ const dayModalSub = document.getElementById('dayModalSub');
 const dayInput = document.getElementById('dayInput');
 const daySave = document.getElementById('daySave');
 const dayCancel = document.getElementById('dayCancel');
+const startTimeBtn = document.getElementById('startTimeBtn');
+const startTimeLabel = document.getElementById('startTimeLabel');
+const startTimeModal = document.getElementById('startTimeModal');
+const startTimeInput = document.getElementById('startTimeInput');
+const startTimeSave = document.getElementById('startTimeSave');
+const startTimeCancel = document.getElementById('startTimeCancel');
 const statToday = document.getElementById('statToday');
 const statStreak = document.getElementById('statStreak');
 const statBestStreak = document.getElementById('statBestStreak');
@@ -36,6 +42,11 @@ function fmt(seconds) {
 
 function fmtHours(seconds) {
   return (seconds / 3600).toFixed(1) + ' h';
+}
+
+function fmtClock(ms) {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 function todayKey() {
@@ -161,6 +172,11 @@ function render() {
 
   toggleBtn.textContent = state.running ? 'Stop' : 'Start';
   toggleBtn.classList.toggle('running', state.running);
+
+  startTimeBtn.classList.toggle('hidden', !state.running);
+  if (state.running) {
+    startTimeLabel.textContent = fmtClock(state.startedAt);
+  }
 
   goalLabel.textContent = (state.goalSeconds / 3600).toFixed(state.goalSeconds % 3600 === 0 ? 0 : 1);
 
@@ -289,7 +305,54 @@ async function saveDay() {
   }
 }
 
+function openStartTimeModal() {
+  if (!state || !state.running) return;
+  startTimeInput.value = fmtClock(state.startedAt);
+  startTimeModal.classList.remove('hidden');
+  startTimeInput.focus();
+}
+
+function closeStartTimeModal() {
+  startTimeModal.classList.add('hidden');
+}
+
+async function saveStartTime() {
+  const [h, m] = startTimeInput.value.split(':').map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return;
+  const candidate = new Date();
+  candidate.setHours(h, m, 0, 0);
+  // pokud zadany cas jeste nenastal (napr. je 00:30 a zadas 23:50), znamena to vcerejsek
+  if (candidate.getTime() > Date.now()) {
+    candidate.setDate(candidate.getDate() - 1);
+  }
+  try {
+    const res = await fetch('/api/start-time', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ startedAt: candidate.getTime() }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      alert(err.error === 'startedAt must be within the last 24 hours'
+        ? 'Zadaný čas musí být v posledních 24 hodinách.'
+        : 'Nepodařilo se uložit.');
+      return;
+    }
+    state = await res.json();
+    closeStartTimeModal();
+    render();
+  } catch {
+    alert('Nepodařilo se uložit, zkus to prosím znovu.');
+  }
+}
+
 toggleBtn.addEventListener('click', toggle);
+startTimeBtn.addEventListener('click', openStartTimeModal);
+startTimeCancel.addEventListener('click', closeStartTimeModal);
+startTimeSave.addEventListener('click', saveStartTime);
+startTimeModal.addEventListener('click', (e) => {
+  if (e.target === startTimeModal) closeStartTimeModal();
+});
 goalBtn.addEventListener('click', openGoalModal);
 goalCancel.addEventListener('click', closeGoalModal);
 goalSave.addEventListener('click', saveGoal);

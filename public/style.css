@@ -158,6 +158,25 @@ body {
   color: #fff;
 }
 
+.start-time-pill {
+  display: block;
+  margin: 12px auto 0;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.start-time-pill:hover {
+  color: #cbd5e1;
+}
+
+.start-time-pill.hidden {
+  display: none;
+}
+
 .history-card {
   background: #1e293bcc;
   border: 1px solid #334155;

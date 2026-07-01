@@ -49,12 +49,49 @@ async function saveData(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
+// Appka pocita "den" vzdy podle ceskeho casu, bez ohledu na to, v jake
+// casove zone bezi server (Render typicky bezi v UTC) - jinak by se vecerni
+// noseni kolem pulnoci mohlo spatne priradit k jinemu datu.
+const APP_TIMEZONE = 'Europe/Prague';
+
 function dateKey(ms) {
-  const d = new Date(ms);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  const map = {};
+  for (const p of new Intl.DateTimeFormat('en-CA', {
+    timeZone: APP_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date(ms))) {
+    map[p.type] = p.value;
+  }
+  return `${map.year}-${map.month}-${map.day}`;
+}
+
+// Prevede "hodiny na nastenych hodinach" v dane casove zone na epoch ms,
+// spravne i pres prechod letniho/zimniho casu.
+function zonedTimeToUtc(y, m, d, h, mi, s, timeZone) {
+  const utcGuess = Date.UTC(y, m - 1, d, h, mi, s);
+  const map = {};
+  for (const p of new Intl.DateTimeFormat('en-US', {
+    timeZone, hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(new Date(utcGuess))) {
+    map[p.type] = p.value;
+  }
+  const hour = +map.hour === 24 ? 0 : +map.hour;
+  const asUTC = Date.UTC(+map.year, +map.month - 1, +map.day, hour, +map.minute, +map.second);
+  return utcGuess - (asUTC - utcGuess);
+}
+
+// Pulnoc (00:00 ceskeho casu) prvniho dne nasledujiciho po danem casovem razitku
+function nextMidnight(ms) {
+  const map = {};
+  for (const p of new Intl.DateTimeFormat('en-CA', {
+    timeZone: APP_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date(ms))) {
+    map[p.type] = p.value;
+  }
+  const d = new Date(+map.year, +map.month - 1, +map.day);
+  d.setDate(d.getDate() + 1);
+  return zonedTimeToUtc(d.getFullYear(), d.getMonth() + 1, d.getDate(), 0, 0, 0, APP_TIMEZONE);
 }
 
 // Rozpocita interval [startMs, endMs) mezi jednotlive kalendarni dny
@@ -63,9 +100,7 @@ function splitByDay(startMs, endMs) {
   const result = {};
   let cursor = startMs;
   while (cursor < endMs) {
-    const d = new Date(cursor);
-    const nextMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0).getTime();
-    const segEnd = Math.min(endMs, nextMidnight);
+    const segEnd = Math.min(endMs, nextMidnight(cursor));
     const key = dateKey(cursor);
     const secs = (segEnd - cursor) / 1000;
     result[key] = (result[key] || 0) + secs;
@@ -231,6 +266,33 @@ const server = http.createServer(async (req, res) => {
     if (data.running && date === dateKey(Date.now())) {
       data.running.startedAt = Date.now();
     }
+    await saveData(data);
+    sendJSON(res, 200, buildStatus(data));
+    return;
+  }
+
+  if (req.url === '/api/start-time' && req.method === 'POST') {
+    const body = await readBody(req);
+    let startedAt;
+    try {
+      startedAt = JSON.parse(body).startedAt;
+    } catch {
+      sendJSON(res, 400, { error: 'invalid body' });
+      return;
+    }
+    startedAt = Number(startedAt);
+    const now = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    if (!Number.isFinite(startedAt) || startedAt > now + 5 * 60 * 1000 || startedAt < now - oneDayMs) {
+      sendJSON(res, 400, { error: 'startedAt must be within the last 24 hours' });
+      return;
+    }
+    const data = await loadData();
+    if (!data.running) {
+      sendJSON(res, 400, { error: 'timer is not running' });
+      return;
+    }
+    data.running.startedAt = startedAt;
     await saveData(data);
     sendJSON(res, 200, buildStatus(data));
     return;
