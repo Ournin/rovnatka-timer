@@ -271,33 +271,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.url === '/api/start-time' && req.method === 'POST') {
-    const body = await readBody(req);
-    let startedAt;
-    try {
-      startedAt = JSON.parse(body).startedAt;
-    } catch {
-      sendJSON(res, 400, { error: 'invalid body' });
-      return;
-    }
-    startedAt = Number(startedAt);
-    const now = Date.now();
-    const oneDayMs = 24 * 60 * 60 * 1000;
-    if (!Number.isFinite(startedAt) || startedAt > now + 5 * 60 * 1000 || startedAt < now - oneDayMs) {
-      sendJSON(res, 400, { error: 'startedAt must be within the last 24 hours' });
-      return;
-    }
-    const data = await loadData();
-    if (!data.running) {
-      sendJSON(res, 400, { error: 'timer is not running' });
-      return;
-    }
-    data.running.startedAt = startedAt;
-    await saveData(data);
-    sendJSON(res, 200, buildStatus(data));
-    return;
-  }
-
   if (req.url.startsWith('/api/')) {
     sendJSON(res, 404, { error: 'not found' });
     return;

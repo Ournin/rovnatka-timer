@@ -184,10 +184,6 @@ body {
   color: #cbd5e1;
 }
 
-.start-time-pill.hidden {
-  display: none;
-}
-
 .history-card {
   background: #1e293bcc;
   border: 1px solid #334155;
