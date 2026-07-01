@@ -191,18 +191,28 @@ function render() {
 }
 
 async function fetchStatus() {
-  const res = await fetch('/api/status');
-  state = await res.json();
-  render();
+  try {
+    const res = await fetch('/api/status');
+    state = await res.json();
+    render();
+  } catch {
+    // vypadek site/spanku serveru - dalsi pokus prijde za 5s, cas se mezitim
+    // pocita lokalne z posledniho známeho stavu, takze se nic neztratí
+  }
 }
 
 async function toggle() {
   toggleBtn.disabled = true;
-  const endpoint = state && state.running ? '/api/stop' : '/api/start';
-  const res = await fetch(endpoint, { method: 'POST' });
-  state = await res.json();
-  toggleBtn.disabled = false;
-  render();
+  try {
+    const endpoint = state && state.running ? '/api/stop' : '/api/start';
+    const res = await fetch(endpoint, { method: 'POST' });
+    state = await res.json();
+    render();
+  } catch {
+    alert('Nepodařilo se spojit se serverem, zkus to prosím znovu.');
+  } finally {
+    toggleBtn.disabled = false;
+  }
 }
 
 function openGoalModal() {
