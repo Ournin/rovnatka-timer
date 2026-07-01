@@ -25,12 +25,19 @@ const statToday = document.getElementById('statToday');
 const statStreak = document.getElementById('statStreak');
 const statBestStreak = document.getElementById('statBestStreak');
 const statTotal = document.getElementById('statTotal');
+const remainingLabel = document.getElementById('remainingLabel');
+const calendarGrid = document.getElementById('calendarGrid');
+const calLabel = document.getElementById('calLabel');
+const calPrev = document.getElementById('calPrev');
+const calNext = document.getElementById('calNext');
 
 const RING_RADIUS = 95;
 const RING_CIRC = 2 * Math.PI * RING_RADIUS;
 ringFill.style.strokeDasharray = `${RING_CIRC} ${RING_CIRC}`;
 
 let state = null;
+const today0 = new Date();
+let calendarView = { year: today0.getFullYear(), month: today0.getMonth() };
 
 function fmt(seconds) {
   seconds = Math.max(0, Math.floor(seconds));
@@ -47,6 +54,15 @@ function fmtHours(seconds) {
 function fmtClock(ms) {
   const d = new Date(ms);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function fmtRemaining(remainingSeconds) {
+  if (remainingSeconds <= 0) return 'Cíl splněn! 🎉';
+  const h = Math.floor(remainingSeconds / 3600);
+  const m = Math.round((remainingSeconds % 3600) / 60);
+  if (h === 0) return `Zbývá ${m} min do cíle`;
+  if (m === 0) return `Zbývá ${h} h do cíle`;
+  return `Zbývá ${h} h ${m} min do cíle`;
 }
 
 function todayKey() {
@@ -157,6 +173,47 @@ function renderBarChart(history, goalSeconds, liveToday) {
   }
 }
 
+const MONTH_NAMES = ['leden', 'únor', 'březen', 'duben', 'květen', 'červen', 'červenec', 'srpen', 'září', 'říjen', 'listopad', 'prosinec'];
+
+function renderCalendar(history, goalSeconds, liveToday) {
+  const map = new Map(history.map((h) => [h.date, h.seconds]));
+  const tKey = todayKey();
+  map.set(tKey, liveToday);
+
+  const { year, month } = calendarView;
+  calLabel.textContent = `${MONTH_NAMES[month]} ${year}`;
+
+  const realToday = new Date();
+  calNext.disabled = year === realToday.getFullYear() && month === realToday.getMonth();
+
+  const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7; // pondeli = 0
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  calendarGrid.innerHTML = '';
+  for (let i = 0; i < firstWeekday; i++) {
+    const empty = document.createElement('div');
+    empty.className = 'cal-cell cal-empty';
+    calendarGrid.appendChild(empty);
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    const key = dateKeyFromDate(new Date(year, month, day));
+    const seconds = map.get(key) || 0;
+    const cell = document.createElement('button');
+    cell.className = 'cal-cell';
+    if (seconds >= goalSeconds) {
+      cell.classList.add('done');
+    } else if (key === tKey) {
+      cell.classList.add('today');
+    } else if (seconds > 0) {
+      cell.classList.add('partial');
+    }
+    cell.textContent = String(day);
+    cell.title = `${key}: ${fmtHours(seconds)}`;
+    cell.addEventListener('click', () => openDayModal(key, seconds));
+    calendarGrid.appendChild(cell);
+  }
+}
+
 function render() {
   if (!state) return;
 
@@ -169,6 +226,10 @@ function render() {
   ringFill.style.strokeDashoffset = offset;
   ringFill.style.stroke = pct >= 100 ? '#facc15' : '#4ade80';
   ringPct.textContent = `${pct.toFixed(0)} %`;
+
+  const remaining = state.goalSeconds - liveSeconds;
+  remainingLabel.textContent = fmtRemaining(remaining);
+  remainingLabel.classList.toggle('done', remaining <= 0);
 
   toggleBtn.textContent = state.running ? 'Stop' : 'Start';
   toggleBtn.classList.toggle('running', state.running);
@@ -215,6 +276,7 @@ function render() {
   }
 
   renderBarChart(state.history, state.goalSeconds, liveSeconds);
+  renderCalendar(state.history, state.goalSeconds, liveSeconds);
 
   const { current, best } = computeStreaks(state.history, state.goalSeconds, liveSeconds);
   statToday.textContent = fmtHours(liveSeconds);
@@ -363,6 +425,23 @@ dayCancel.addEventListener('click', closeDayModal);
 daySave.addEventListener('click', saveDay);
 dayModal.addEventListener('click', (e) => {
   if (e.target === dayModal) closeDayModal();
+});
+calPrev.addEventListener('click', () => {
+  calendarView.month -= 1;
+  if (calendarView.month < 0) {
+    calendarView.month = 11;
+    calendarView.year -= 1;
+  }
+  render();
+});
+calNext.addEventListener('click', () => {
+  if (calNext.disabled) return;
+  calendarView.month += 1;
+  if (calendarView.month > 11) {
+    calendarView.month = 0;
+    calendarView.year += 1;
+  }
+  render();
 });
 
 if ('serviceWorker' in navigator) {

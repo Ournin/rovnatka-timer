@@ -53,6 +53,7 @@
           <div class="ring-pct" id="ringPct">0 %</div>
         </div>
       </div>
+      <div class="remaining-label" id="remainingLabel"></div>
       <button id="toggleBtn" class="toggle-btn">Start</button>
       <button id="startTimeBtn" class="start-time-pill hidden">
         Začalo v <span id="startTimeLabel">--:--</span> ✏️
@@ -62,6 +63,19 @@
     <section class="history-card">
       <h2>Posledních 14 dní</h2>
       <div class="bar-chart" id="barChart"></div>
+
+      <div class="calendar-header">
+        <h2>Kalendář</h2>
+        <div class="calendar-nav">
+          <button id="calPrev" class="cal-nav-btn" title="Předchozí měsíc">‹</button>
+          <span id="calLabel" class="cal-label"></span>
+          <button id="calNext" class="cal-nav-btn" title="Následující měsíc">›</button>
+        </div>
+      </div>
+      <div class="calendar-weekdays">
+        <span>Po</span><span>Út</span><span>St</span><span>Čt</span><span>Pá</span><span>So</span><span>Ne</span>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
 
       <h2>Celá historie</h2>
       <ul id="history" class="history"></ul>
