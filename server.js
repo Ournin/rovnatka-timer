@@ -132,6 +132,9 @@ const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
 };
 
 function serveStatic(req, res) {
@@ -193,6 +196,41 @@ const server = http.createServer(async (req, res) => {
     }
     const data = await loadData();
     data.goalHours = hours;
+    await saveData(data);
+    sendJSON(res, 200, buildStatus(data));
+    return;
+  }
+
+  if (req.url === '/api/day' && req.method === 'POST') {
+    const body = await readBody(req);
+    let date, hours;
+    try {
+      ({ date, hours } = JSON.parse(body));
+    } catch {
+      sendJSON(res, 400, { error: 'invalid body' });
+      return;
+    }
+    hours = Number(hours);
+    if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      sendJSON(res, 400, { error: 'invalid date' });
+      return;
+    }
+    if (!Number.isFinite(hours) || hours < 0 || hours > 24) {
+      sendJSON(res, 400, { error: 'hours must be between 0 and 24' });
+      return;
+    }
+    const data = await loadData();
+    if (hours === 0) {
+      delete data.days[date];
+    } else {
+      data.days[date] = hours * 3600;
+    }
+    // pokud se prave upravuje dnesek a casovac bezi, "checkpointneme" bezici
+    // session k tomuto okamziku, aby uz odbehnuty cas nesplynul do noveho
+    // rucne zadaneho souctu a nezapocital se pri pristim Stop podruhe
+    if (data.running && date === dateKey(Date.now())) {
+      data.running.startedAt = Date.now();
+    }
     await saveData(data);
     sendJSON(res, 200, buildStatus(data));
     return;

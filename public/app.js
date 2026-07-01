@@ -10,6 +10,11 @@ const goalModal = document.getElementById('goalModal');
 const goalInput = document.getElementById('goalInput');
 const goalSave = document.getElementById('goalSave');
 const goalCancel = document.getElementById('goalCancel');
+const dayModal = document.getElementById('dayModal');
+const dayModalSub = document.getElementById('dayModalSub');
+const dayInput = document.getElementById('dayInput');
+const daySave = document.getElementById('daySave');
+const dayCancel = document.getElementById('dayCancel');
 const statToday = document.getElementById('statToday');
 const statStreak = document.getElementById('statStreak');
 const statBestStreak = document.getElementById('statBestStreak');
@@ -166,7 +171,12 @@ function render() {
   for (const entry of combined) {
     const li = document.createElement('li');
     const label = document.createElement('span');
+    label.className = 'day-label';
     label.textContent = entry.date === tKey ? `${entry.date} (dnes)` : entry.date;
+
+    const valueWrap = document.createElement('span');
+    valueWrap.className = 'day-value';
+
     const value = document.createElement('span');
     value.textContent = fmtHours(entry.seconds);
     if (entry.seconds >= state.goalSeconds) {
@@ -174,8 +184,17 @@ function render() {
     } else if (entry.date === tKey) {
       value.classList.add('today');
     }
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'edit-btn';
+    editBtn.textContent = '✏️';
+    editBtn.title = 'Upravit tento den';
+    editBtn.addEventListener('click', () => openDayModal(entry.date, entry.seconds));
+
+    valueWrap.appendChild(value);
+    valueWrap.appendChild(editBtn);
     li.appendChild(label);
-    li.appendChild(value);
+    li.appendChild(valueWrap);
     historyEl.appendChild(li);
   }
 
@@ -238,6 +257,38 @@ async function saveGoal() {
   render();
 }
 
+let editingDate = null;
+
+function openDayModal(date, currentSeconds) {
+  editingDate = date;
+  dayModalSub.textContent = `Kolik hodin jsi nosil rovnátka v den ${date}?`;
+  dayInput.value = (currentSeconds / 3600).toFixed(1);
+  dayModal.classList.remove('hidden');
+  dayInput.focus();
+}
+
+function closeDayModal() {
+  dayModal.classList.add('hidden');
+  editingDate = null;
+}
+
+async function saveDay() {
+  const hours = Number(dayInput.value);
+  if (!editingDate || !Number.isFinite(hours) || hours < 0 || hours > 24) return;
+  try {
+    const res = await fetch('/api/day', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: editingDate, hours }),
+    });
+    state = await res.json();
+    closeDayModal();
+    render();
+  } catch {
+    alert('Nepodařilo se uložit, zkus to prosím znovu.');
+  }
+}
+
 toggleBtn.addEventListener('click', toggle);
 goalBtn.addEventListener('click', openGoalModal);
 goalCancel.addEventListener('click', closeGoalModal);
@@ -245,6 +296,17 @@ goalSave.addEventListener('click', saveGoal);
 goalModal.addEventListener('click', (e) => {
   if (e.target === goalModal) closeGoalModal();
 });
+dayCancel.addEventListener('click', closeDayModal);
+daySave.addEventListener('click', saveDay);
+dayModal.addEventListener('click', (e) => {
+  if (e.target === dayModal) closeDayModal();
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
 
 fetchStatus();
 setInterval(fetchStatus, 5000);
