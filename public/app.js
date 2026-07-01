@@ -12,7 +12,8 @@ const goalSave = document.getElementById('goalSave');
 const goalCancel = document.getElementById('goalCancel');
 const dayModal = document.getElementById('dayModal');
 const dayModalSub = document.getElementById('dayModalSub');
-const dayInput = document.getElementById('dayInput');
+const dayHoursInput = document.getElementById('dayHoursInput');
+const dayMinutesInput = document.getElementById('dayMinutesInput');
 const daySave = document.getElementById('daySave');
 const dayCancel = document.getElementById('dayCancel');
 const startTimeBtn = document.getElementById('startTimeBtn');
@@ -340,9 +341,11 @@ let editingDate = null;
 function openDayModal(date, currentSeconds) {
   editingDate = date;
   dayModalSub.textContent = `Kolik hodin jsi nosil rovnátka v den ${date}?`;
-  dayInput.value = (currentSeconds / 3600).toFixed(1);
+  const totalMinutes = Math.round(currentSeconds / 60);
+  dayHoursInput.value = Math.floor(totalMinutes / 60);
+  dayMinutesInput.value = totalMinutes % 60;
   dayModal.classList.remove('hidden');
-  dayInput.focus();
+  dayHoursInput.focus();
 }
 
 function closeDayModal() {
@@ -351,7 +354,9 @@ function closeDayModal() {
 }
 
 async function saveDay() {
-  const hours = Number(dayInput.value);
+  const h = Number(dayHoursInput.value) || 0;
+  const m = Number(dayMinutesInput.value) || 0;
+  const hours = h + m / 60;
   if (!editingDate || !Number.isFinite(hours) || hours < 0 || hours > 24) return;
   try {
     const res = await fetch('/api/day', {
