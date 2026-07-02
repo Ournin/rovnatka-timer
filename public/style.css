@@ -136,6 +136,46 @@ body {
   color: #94a3b8;
 }
 
+.quick-adjust {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.adjust-btn {
+  padding: 8px 0;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  background: #334155;
+  color: #cbd5e1;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.adjust-btn:hover {
+  background: #475569;
+}
+
+.adjust-btn:active {
+  transform: scale(0.95);
+}
+
+.adjust-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.adjust-btn.minus {
+  color: #fca5a5;
+}
+
+.adjust-btn.plus {
+  color: #86efac;
+}
+
 .remaining-label {
   margin: 0 0 16px;
   font-size: 15px;

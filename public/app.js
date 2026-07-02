@@ -27,6 +27,7 @@ const calendarGrid = document.getElementById('calendarGrid');
 const calLabel = document.getElementById('calLabel');
 const calPrev = document.getElementById('calPrev');
 const calNext = document.getElementById('calNext');
+const adjustButtons = document.querySelectorAll('.adjust-btn');
 
 const RING_RADIUS = 95;
 const RING_CIRC = 2 * Math.PI * RING_RADIUS;
@@ -361,8 +362,30 @@ async function saveDay() {
   }
 }
 
+async function adjustToday(deltaMinutes) {
+  if (!state) return;
+  const newTotal = Math.max(0, Math.min(24 * 3600, currentLiveSeconds() + deltaMinutes * 60));
+  adjustButtons.forEach((btn) => (btn.disabled = true));
+  try {
+    const res = await fetch('/api/day', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: todayKey(), hours: newTotal / 3600 }),
+    });
+    state = await res.json();
+    render();
+  } catch {
+    alert('Nepodařilo se uložit, zkus to prosím znovu.');
+  } finally {
+    adjustButtons.forEach((btn) => (btn.disabled = false));
+  }
+}
+
 toggleBtn.addEventListener('click', toggle);
 editTodayBtn.addEventListener('click', () => openDayModal(todayKey(), currentLiveSeconds()));
+adjustButtons.forEach((btn) => {
+  btn.addEventListener('click', () => adjustToday(Number(btn.dataset.delta)));
+});
 goalBtn.addEventListener('click', openGoalModal);
 goalCancel.addEventListener('click', closeGoalModal);
 goalSave.addEventListener('click', saveGoal);
